@@ -8,12 +8,13 @@ from Encryption.hill_cipher import hill_encrypt, key_matrix
 from Encryption.playfair_cipher import playfair_encrypt
 
 class ClientApp:
+    #Initialisation
     def __init__(self, root):
         self.root = root
         self.root.title("Secure Chat Client")
 
         self.algorithm = tk.StringVar(value="Caesar")
-
+        #Arranging a dropdown
         ttk.Label(root, text="Encryption Algorithm:").pack()
         self.algorithm_combo = ttk.Combobox(root, textvariable=self.algorithm, values=["Caesar", "Vigenere", "Hill", "Playfair"])
         self.algorithm_combo.pack()
@@ -39,7 +40,7 @@ class ClientApp:
         algorithm = self.algorithm.get()
 
         if message == "":
-            return  # Do nothing if the message is empty
+            return  
 
         # Encrypt the message based on selected algorithm
         if algorithm == "Caesar":
@@ -53,18 +54,21 @@ class ClientApp:
             key = "MONARCHY"
             encrypted_message = playfair_encrypt(message, key)
 
+        #Display Message
         self.text_area.insert(tk.END, f"Your Message Sent: {message}\n")
         self.text_area.yview(tk.END)
         self.message_entry.delete(0, tk.END)
 
+        #Thread to send encrypted msgs
         send_thread = Thread(target=self.send_encrypted_message, args=(algorithm, encrypted_message,))
         send_thread.start()
 
     def send_encrypted_message(self, algorithm, encrypted_message):
         try:
+            #Creating a socket for network communication 
             self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.client_socket.connect(('127.0.0.1', 12345))
-            self.client_socket.sendall(f"{algorithm}|{encrypted_message}".encode())
+            self.client_socket.sendall(f"{algorithm}|{encrypted_message}".encode())#Sending in bytes
 
             # Wait for the response from server
             decrypted_message = self.client_socket.recv(1024).decode()

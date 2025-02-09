@@ -1,7 +1,7 @@
 import numpy as np
 
 def mod_inverse(a, m):
-    """Returns modular inverse of a under modulo m (if exists)"""
+    #Returns modular inverse of a under modulo m (if exists)
     a = a % m
     for x in range(1, m):
         if (a * x) % m == 1:
@@ -9,15 +9,14 @@ def mod_inverse(a, m):
     return None  # No modular inverse exists
 
 def text_to_numbers(text):
-    """Converts text to numerical representation (A=0, B=1, ..., Z=25)"""
+    #Converts text to numerical representation (A=0, B=1, ..., Z=25)
     return [ord(char) - ord('A') for char in text]
 
 def numbers_to_text(numbers):
-    """Converts numerical representation back to text"""
+    #Converts numerical representation back to text
     return ''.join(chr(num + ord('A')) for num in numbers)
 
 def hill_encrypt(plaintext, key_matrix):
-    """Encrypts plaintext using Hill Cipher"""
     plaintext = plaintext.upper().replace(" ", "")
     
     # Ensure text length is a multiple of key size (add padding if needed)
@@ -32,13 +31,12 @@ def hill_encrypt(plaintext, key_matrix):
     encrypted_text = []
     for i in range(0, len(text_vector), n):
         block = np.array(text_vector[i:i+n]).reshape(-1, 1)
-        encrypted_block = np.dot(key_matrix, block) % 26
-        encrypted_text.extend(encrypted_block.flatten())
+        encrypted_block = np.dot(key_matrix, block) % 26# Dot product
+        encrypted_text.extend(encrypted_block.flatten()) # 1D array
 
     return numbers_to_text(encrypted_text)
 
 def hill_decrypt(ciphertext, key_matrix):
-    """Decrypts ciphertext using Hill Cipher"""
     n = len(key_matrix)
     ciphertext = ciphertext.upper().replace(" ", "")
 

@@ -7,16 +7,19 @@ from Encryption.hill_cipher import hill_decrypt, key_matrix
 from Encryption.playfair_cipher import playfair_decrypt
 
 class ServerApp:
+    #Initialisation
     def __init__(self, root):
         self.root = root
         self.root.title("Secure Chat Server")
-
+        
+        #Create text box and arrange it in GUI
         self.text_area = tk.Text(root, height=10, width=50)
         self.text_area.pack()
 
         self.start_button = tk.Button(root, text="Start Server", command=self.start_server)
         self.start_button.pack()
 
+        #Initially button is disabled, if clicked runs stop_server()
         self.stop_button = tk.Button(root, text="Stop Server", command=self.stop_server, state=tk.DISABLED)
         self.stop_button.pack()
 
@@ -25,23 +28,27 @@ class ServerApp:
 
     def start_server(self):
         self.text_area.delete(1.0, tk.END)
+
+        #Creating a socket for network communication 
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.bind(('127.0.0.1', 12345))
         self.server_socket.listen(5)
 
+        #Display msg
         self.text_area.insert(tk.END, "Server started. Waiting for connection...\n")
         self.start_button.config(state=tk.DISABLED)
         self.stop_button.config(state=tk.NORMAL)
         self.running = True
 
+        #Thread accepting clients in the background
         self.accept_thread = Thread(target=self.accept_connections)
         self.accept_thread.start()
 
     def accept_connections(self):
         while self.running:
             try:
-                conn, addr = self.server_socket.accept()
-                client_thread = Thread(target=self.handle_client, args=(conn,))
+                conn, addr = self.server_socket.accept()# connection of socket and addr of client
+                client_thread = Thread(target=self.handle_client, args=(conn,)) # One thread for one client
                 client_thread.start()
             except Exception as e:
                 if self.running:
@@ -50,7 +57,7 @@ class ServerApp:
     def handle_client(self, conn):
         while self.running:
             try:
-                data = conn.recv(1024).decode()
+                data = conn.recv(1024).decode() #Decoding upto 1024bytes
                 if not data:
                     break
                 

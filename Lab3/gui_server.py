@@ -45,7 +45,6 @@ class ServerApp:
                 conn, addr = self.server_socket.accept()
                 self.text_area.insert(tk.END, f"🔵 Connected to {addr}\n")
 
-                # Send AES key to client
                 conn.sendall(json.dumps({'type': 'key', 'key': self.key.hex()}).encode())
 
                 client_thread = Thread(target=self.handle_client, args=(conn,))
@@ -56,20 +55,22 @@ class ServerApp:
 
     def handle_client(self, conn):
         try:
-            data = conn.recv(2048).decode()
+            data = conn.recv(4096).decode()
             if not data:
                 return
 
-            # Decrypt received message
-            decrypted_msg = decrypt(data, self.key)
+            data_json = json.loads(data)
+            data_type = data_json.get("type")
+            encrypted_msg = data_json.get("data")
 
-            # Display encrypted & decrypted message
-            self.text_area.insert(tk.END, f"🔒 Encrypted: {data}\n🔓 Decrypted: {decrypted_msg}\n\n")
-            self.text_area.yview(tk.END)
+            decrypted_msg = decrypt(encrypted_msg, self.key)
 
-            # Encrypt and send back
-            encrypted_response = encrypt(decrypted_msg, self.key)
-            conn.sendall(encrypted_response.encode())
+            # Server displays both encrypted and decrypted messages
+            self.text_area.insert(tk.END, f"🔒 Encrypted ({data_type}): {encrypted_msg}\n")
+            self.text_area.insert(tk.END, f"🔓 Decrypted ({data_type}): {decrypted_msg}\n\n")
+
+            # Send **decrypted** message back to client
+            conn.sendall(decrypted_msg)
 
         except Exception as e:
             print(f"⚠️ Error: {e}")

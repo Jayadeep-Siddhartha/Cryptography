@@ -75,11 +75,36 @@ class ClientApp:
         file_path = filedialog.askopenfilename()
         if not file_path:
             return
-        
+
         algorithm = self.algorithm.get()
-        encrypted_file_path = file_path + ".enc"
-        encrypt_file(file_path, encrypted_file_path, DES3_KEY if algorithm == "3DES" else DES_KEY, use_3des=(algorithm == "3DES"))
-        self.text_area.insert(tk.END, f"File encrypted and saved: {encrypted_file_path}\n")
+
+        # Read file content
+        with open(file_path, "rb") as f:
+            file_data = f.read()
+
+        # Encrypt file content
+        if algorithm == "DES":
+            encrypted_data = des_encrypt(file_data.decode(), DES_KEY)  # Ensure file is text-based
+        else:
+            encrypted_data = des3_encrypt(file_data.decode(), DES3_KEY)
+
+        # Open a socket connection and send encrypted data
+        try:
+            self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.client_socket.connect(('127.0.0.1', 12345))
+
+            # Send algorithm type and encrypted data
+            self.client_socket.sendall(f"{algorithm}|FILE|{encrypted_data}|{DES_KEY.decode() if algorithm == 'DES' else DES3_KEY.decode()}".encode())
+
+            # Receive decrypted data from server
+            decrypted_message = self.client_socket.recv(4096).decode()
+            self.text_area.insert(tk.END, f"Decrypted File Content from Server:\n{decrypted_message}\n\n")
+            self.text_area.yview(tk.END)
+
+            self.client_socket.close()
+        except Exception as e:
+            print(f"Error sending file: {e}")
+
         
     def receive_messages(self):
         while True:
@@ -91,81 +116,8 @@ class ClientApp:
             except:
                 break
 
-class ServerApp:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("Secure Chat Server")
-
-        self.text_area = tk.Text(root, height=10, width=50)
-        self.text_area.pack()
-
-        self.start_button = tk.Button(root, text="Start Server", command=self.start_server)
-        self.start_button.pack()
-
-        self.stop_button = tk.Button(root, text="Stop Server", command=self.stop_server, state=tk.DISABLED)
-        self.stop_button.pack()
-
-        self.server_socket = None
-        self.running = False
-
-    def start_server(self):
-        self.text_area.delete(1.0, tk.END)
-        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.server_socket.bind(('127.0.0.1', 12345))
-        self.server_socket.listen(5)
-
-        self.text_area.insert(tk.END, "Server started. Waiting for connection...\n")
-        self.start_button.config(state=tk.DISABLED)
-        self.stop_button.config(state=tk.NORMAL)
-        self.running = True
-
-        self.accept_thread = Thread(target=self.accept_connections)
-        self.accept_thread.start()
-
-    def accept_connections(self):
-        while self.running:
-            try:
-                conn, addr = self.server_socket.accept()
-                client_thread = Thread(target=self.handle_client, args=(conn,))
-                client_thread.start()
-            except Exception as e:
-                if self.running:
-                    self.text_area.insert(tk.END, f"Error: {str(e)}\n")
-
-    def handle_client(self, conn):
-        while self.running:
-            try:
-                data = conn.recv(1024).decode()
-                if not data:
-                    break
-                
-                algorithm, encrypted_msg = data.split("|", 1)
-                
-                if algorithm == "DES":
-                    decrypted_msg = des_decrypt(encrypted_msg, DES_KEY)
-                else:
-                    decrypted_msg = des3_decrypt(encrypted_msg, DES3_KEY)
-
-                self.text_area.insert(tk.END, f"Encrypted: {encrypted_msg}\nDecrypted: {decrypted_msg}\n\n")
-                self.text_area.yview(tk.END)
-                
-                conn.sendall(decrypted_msg.encode())
-            except Exception as e:
-                break
-        conn.close()
-
-    def stop_server(self):
-        self.running = False
-        if self.server_socket:
-            self.server_socket.close()
-        self.start_button.config(state=tk.NORMAL)
-        self.stop_button.config(state=tk.DISABLED)
-        self.text_area.insert(tk.END, "Server stopped.\n")
 
 if __name__ == "__main__":
-    root = tk.Tk()
-    if "server" in root.tk.call("info", "commands"):
-        app = ServerApp(root)
-    else:
-        app = ClientApp(root)
+    root = tk.Tk()   
+    app = ClientApp(root)
     root.mainloop()

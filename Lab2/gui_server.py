@@ -64,27 +64,42 @@ class ServerApp:
     def handle_client(self, conn):
         while self.running:
             try:
-                data = conn.recv(1024).decode()
+                data = conn.recv(4096).decode()
                 if not data:
                     break
                 
-                algorithm, encrypted_msg, key = data.split("|", 2)
+                parts = data.split("|", 3)  # Split into up to 4 parts
+                if len(parts) == 3:  # Message format: algorithm|encrypted_msg|key
+                    algorithm, encrypted_msg, key = parts
+                    data_type = "TEXT"
+                elif len(parts) == 4:  # File format: algorithm|FILE|encrypted_msg|key
+                    algorithm, data_type, encrypted_msg, key = parts
+                else:
+                    continue  # Invalid format
+
                 decrypted_msg = ""
-                
+
                 if algorithm == "DES":
                     decrypted_msg = des_decrypt(encrypted_msg, key)
                 elif algorithm == "3DES":
                     decrypted_msg = des3_decrypt(encrypted_msg, key)
 
-                self.text_area.insert(tk.END, f"Encrypted: {encrypted_msg}\nDecrypted: {decrypted_msg}\n\n")
+                if data_type == "FILE":
+                    self.text_area.insert(tk.END, f"Received Encrypted File Content:\n{encrypted_msg}\n")
+                    self.text_area.insert(tk.END, f"Decrypted File Content:\n{decrypted_msg}\n\n")
+                else:
+                    self.text_area.insert(tk.END, f"Encrypted: {encrypted_msg}\nDecrypted: {decrypted_msg}\n\n")
+
                 self.text_area.yview(tk.END)
 
-                # Send decrypted message back to client
+                # Send decrypted content back to the client
                 conn.sendall(decrypted_msg.encode())
+
             except Exception as e:
                 self.text_area.insert(tk.END, f"Error: {str(e)}\n")
                 break
         conn.close()
+
 
     def stop_server(self):
         self.running = False
